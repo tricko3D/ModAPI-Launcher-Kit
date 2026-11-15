@@ -43,3 +43,14 @@ The main solution can be built using Build Solution in Visual Studio, or by usin
   - other files and folders
 
 If you already have the Launcher Kit installed elsewhere, it will still work independently. Note that the .package files from mods are globally installed as they exist in the game's own folders, but .dll files are specific to each install of the Launcher Kit, and won't be injected when using the "wrong" instance. Therefore, while you can have multiple instances of the Launcher Kit (i.e. a release version and a development version), it is recommended to uninstall most or all mods in the version you are not currently using, to ensure mods that use both .package files and .dll files together are not broken.
+
+
+### Selecting a custom Spore installation
+
+By default, the Launcher Kit discovers Spore and Galactic Adventures through the Windows registry. If either cannot be found, all three apps now offer to select the game folders manually. This also supports old Origin installs, moved installations and installations outside the default directories.
+
+Select the **Galactic Adventures game folder** containing `DataEP1` and `SporebinEP1\SporeApp.exe`. If the base game `Data` folder is not alongside it, select the separate **base Spore folder** as well. You may select a `DataEP1`, `SporebinEP1` or `Data` folder directly instead of the game root. The selection is shared by the Launcher, Easy Installer and Easy Uninstaller and stored in `%APPDATA%\Spore ModAPI Launcher\game_paths.txt`.
+
+To switch to a different installation later, run `"Spore ModAPI Launcher.exe" --configure-game` from a command prompt or a shortcut. Selecting a game never writes to the game's registry keys.
+
+**Compatibility:** Manual folder selection removes registry-based *discovery* as a requirement, but the game itself may still need valid registry `DataDir` entries in order to run. The launcher also still requires Galactic Adventures and a compatible `SporeApp.exe` version for safe ModAPI DLL injection. It does not bypass DRM or add support for unknown executable versions.
