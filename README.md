@@ -55,16 +55,18 @@ To switch to a different installation later, run `"Spore ModAPI Launcher.exe" --
 
 **Compatibility:** Manual folder selection removes registry-based *discovery* as a requirement, but the game itself may still need valid registry `DataDir` entries in order to run. The launcher also still requires Galactic Adventures and a compatible `SporeApp.exe` version for safe ModAPI DLL injection. It does not bypass DRM or add support for unknown executable versions.
 
-### Recognizing older disc executables
+### Compatibility with older GOG Collection executables
 
-The Launcher normally identifies supported Galactic Adventures executables by their exact file size. For the older **3.0.0.2818** disc/patch 5.1 version, this fork additionally recognizes a valid x86 executable with that file version, even if its file size differs from the standard build. A confirmation dialog warns that a modified executable might not work with the disc ModAPI DLLs. This is a best-effort compatibility fallback, not a guarantee that every executable can load ModAPI. Versions with ambiguous DRM variants are still restricted to their known executable fingerprints.
+The ModAPI SDK contains native hooks compiled against specific executable layouts and uses hardcoded game-function addresses. **Manual folder selection is independent of DLL compatibility**: the launcher can locate an arbitrary installation, but it must still match a tested executable before injecting mods.
+
+A legacy GOG SPORE Collection executable can report version `3.0.0.2818` with a file size of `24,888,320` bytes. This is **not** the SDK's supported patch 5.1 disc executable (`24,909,584` bytes). Injecting the disc ModAPI DLLs into that legacy executable has been observed to cause `0xC0000005` access violations. This fork blocks that combination rather than crashing the game. To use DLL mods with that exact executable, the SDK must be independently ported and tested against its binary, or the user can update to an officially supported game build. Standard `.package` mods do not require DLL injection.
 
 ### Diagnosing a game that closes immediately
 
-If a manually selected installation accepts the version warning but nothing appears, test whether Spore starts without any ModAPI DLL injection. From a PowerShell window opened in the Launcher Kit installation folder, run:
+If a supported installation fails during launch, test whether Spore starts without any ModAPI DLL injection. From a PowerShell window opened in the Launcher Kit installation folder, run:
 
 ```powershell
 & ".\Spore ModAPI Launcher.exe" --test-vanilla
 ```
 
-This launches the selected Galactic Adventures `SporeApp.exe` directly and reports whether the process exits within seven seconds. A failure without injection indicates a game/registry/executable problem, rather than ModAPI itself. With an unverified executable, normal launcher runs also monitor for six seconds after injection and report an early exit code. Diagnostic entries are appended to `%APPDATA%\Spore ModAPI Launcher\launch-diagnostics.log`. This mode does not modify game files or install mods.
+This launches the selected Galactic Adventures `SporeApp.exe` directly and reports whether the process exits within seven seconds. A failure without injection indicates a game/registry/executable problem, rather than ModAPI itself. The diagnostics include native launch stages; when an unexpected executable is introduced for testing, they can also report an early exit code. Diagnostic entries are appended to `%APPDATA%\Spore ModAPI Launcher\launch-diagnostics.log`. This mode does not modify game files or install mods.
