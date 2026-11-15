@@ -98,6 +98,27 @@ namespace SporeModAPI_Launcher
                     return;
                 }
 
+                // Executable sizes are used as build fingerprints. Some older installs
+                // retain the supported disc file version but differ in size. Those builds
+                // may be modified, so require explicit consent before trying the disc DLLs.
+                if (!GameVersion.HasKnownExecutableSize(this.ExecutablePath))
+                {
+                    string fileVersion = FileVersionInfo.GetVersionInfo(this.ExecutablePath).FileVersion;
+                    long fileSize = new FileInfo(this.ExecutablePath).Length;
+                    if (MessageBox.Show(
+                        "SporeApp.exe reports version " + fileVersion +
+                        ", but its executable size (" + fileSize + " bytes) does not match a known Launcher Kit build.\n\n" +
+                        "The launcher recognized this as the older disc/patch 5.1 version and can try " +
+                        "the corresponding ModAPI DLLs. However, a modified executable might still " +
+                        "be incompatible or crash during injection.\n\n" +
+                        "Try launching this version anyway?",
+                        "Unverified Spore executable", MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning) != DialogResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
                 // check if SporeModLoader is installed
                 try
                 {
