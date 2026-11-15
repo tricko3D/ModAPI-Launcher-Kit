@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 
 namespace ModAPI.Common
@@ -38,19 +39,60 @@ namespace ModAPI.Common
                     versionType == GameVersionType.EA_October2024;
         }
 
+        /// <summary>
+        /// An exact executable size is the strongest evidence of a known supported build.
+        /// A file with a supported version but a different size may have been patched.
+        /// </summary>
+        public static bool HasKnownExecutableSize(string path)
+        {
+            return !string.IsNullOrEmpty(path) &&
+                   File.Exists(path) &&
+                   ExecutableSizes.ContainsKey(new FileInfo(path).Length);
+        }
+
         public static GameVersionType DetectVersion(string path)
         {
-            if (!string.IsNullOrEmpty(path))
-            {
-                var length = new FileInfo(path).Length;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return GameVersionType.None;
 
-                if (ExecutableSizes.TryGetValue(length, out GameVersionType gameVersionType))
-                {
-                    return gameVersionType;
-                }
+            var length = new FileInfo(path).Length;
+            if (ExecutableSizes.TryGetValue(length, out GameVersionType gameVersionType))
+                return gameVersionType;
+
+            // Older disc installs can have a modified SporeApp.exe (e.g. other patches).
+            // Unlike the later 3.1 builds, 3.0.0.2818 unambiguously maps to the disc
+            // injection DLLs. Only enable this fallback for a real 32-bit PE executable
+            // with that exact file version; the launcher will warn before injection.
+            var info = FileVersionInfo.GetVersionInfo(path);
+            if (info.FileMajorPart == 3 && info.FileMinorPart == 0 &&
+                info.FileBuildPart == 0 && info.FilePrivatePart == 2818 &&
+                IsX86Executable(path))
+            {
+                return GameVersionType.Disc;
             }
 
+            // Other versions are intentionally not guessed. Later 3.1 builds
+            // share version numbers across distinct DRM/injection variants.
             return GameVersionType.None;
+        }
+
+        private static bool IsX86Executable(string path)
+        {
+            using (var stream = File.OpenRead(path))
+            using (var reader = new BinaryReader(stream))
+            {
+                if (stream.Length < 0x40 || reader.ReadUInt16() != 0x5A4D)
+                    return false;
+
+                stream.Position = 0x3C;
+                int peOffset = reader.ReadInt32();
+                if (peOffset < 0x40 || peOffset > stream.Length - 24)
+                    return false;
+
+                stream.Position = peOffset;
+                return reader.ReadUInt32() == 0x00004550 &&
+                       reader.ReadUInt16() == 0x014C;
+            }
         }
 
         public static string GetVersionName(GameVersionType type)
