@@ -38,19 +38,26 @@ namespace ModAPI.Common
                     versionType == GameVersionType.EA_October2024;
         }
 
+        /// <summary>
+        /// The ModAPI SDK uses game-build-specific addresses, so a matching Windows
+        /// file-version string alone is not enough to select a compatible DLL.
+        /// </summary>
+        public static bool HasKnownExecutableSize(string path)
+        {
+            return !string.IsNullOrEmpty(path) &&
+                   File.Exists(path) &&
+                   ExecutableSizes.ContainsKey(new FileInfo(path).Length);
+        }
+
         public static GameVersionType DetectVersion(string path)
         {
-            if (!string.IsNullOrEmpty(path))
-            {
-                var length = new FileInfo(path).Length;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return GameVersionType.None;
 
-                if (ExecutableSizes.TryGetValue(length, out GameVersionType gameVersionType))
-                {
-                    return gameVersionType;
-                }
-            }
-
-            return GameVersionType.None;
+            return ExecutableSizes.TryGetValue(new FileInfo(path).Length,
+                out GameVersionType gameVersionType)
+                ? gameVersionType
+                : GameVersionType.None;
         }
 
         public static string GetVersionName(GameVersionType type)
