@@ -192,10 +192,10 @@ namespace SporeModAPI_Launcher
                             "(3.0.0.2818, 24,888,320 bytes).\n\n" +
                             "It is not interchangeable with the patch 5.1 disc executable " +
                             "used by the ModAPI SDK. A previous attempt to inject the disc " +
-                            "DLLs into this build crashed with access violation 0xC0000005.\\n\\n" +
+                            "DLLs into this build crashed with access violation 0xC0000005.\n\n" +
                             "The game can launch without ModAPI. For DLL-based mods, use a " +
                             "supported up-to-date GOG/EA/Steam installation, or port " +
-                            "the native ModAPI SDK to this specific executable.\\n\\n" +
+                            "the native ModAPI SDK to this specific executable.\n\n" +
                             "Manual installation paths remain supported.",
                             "Unsupported legacy Spore executable",
                             MessageBoxButtons.OK, MessageBoxIcon.Warning);
