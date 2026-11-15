@@ -22,6 +22,82 @@ namespace SporeModAPI_Launcher
     {
         private const string ModAPIFixDownloadURL = "https://davoonline.com/sporemodder/emd4600/SporeApp_ModAPIFix.zip";
 
+        private static readonly string DiagnosticsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Spore ModAPI Launcher", "launch-diagnostics.log");
+
+        private static void LogLaunch(string message)
+        {
+            // Diagnostics must never prevent the game from launching.
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(DiagnosticsPath));
+                File.AppendAllText(DiagnosticsPath,
+                    DateTime.Now.ToString("o") + " " + message + Environment.NewLine);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                // Nonessential log output.
+            }
+        }
+
+        /// <summary>
+        /// Distinguishes game startup failures from ModAPI injection failures.
+        /// No injected DLLs, patched executables or Steam compatibility files are used.
+        /// </summary>
+        private static void TestVanillaLaunch()
+        {
+            try
+            {
+                string bin = SporePath.GetSporebinEP1Path();
+                if (bin == null)
+                    throw new DirectoryNotFoundException("Galactic Adventures SporebinEP1 was not found.");
+
+                string executable = Path.Combine(bin, "SporeApp.exe");
+                LogLaunch("Unmodded launch test: " + executable);
+                using (var game = Process.Start(new ProcessStartInfo
+                {
+                    FileName = executable,
+                    WorkingDirectory = bin,
+                    UseShellExecute = false
+                }))
+                {
+                    if (game == null)
+                        throw new InvalidOperationException("Windows did not return a game process.");
+
+                    LogLaunch("Unmodded process ID: " + game.Id);
+                    if (game.WaitForExit(7000))
+                    {
+                        LogLaunch("Unmodded game exited within 7 seconds. Exit code: 0x" +
+                            unchecked((uint)game.ExitCode).ToString("X8"));
+                        MessageBox.Show(
+                            "The game closed within seven seconds even without ModAPI injection. " +
+                            "Exit code: 0x" + unchecked((uint)game.ExitCode).ToString("X8") +
+                            "\n\nThis suggests a game installation, executable, DRM or data directory issue, " +
+                            "rather than a ModAPI injection failure.\n\nLog: " + DiagnosticsPath,
+                            "Unmodded Spore test", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        LogLaunch("Unmodded game still running after 7 seconds.");
+                        MessageBox.Show(
+                            "The unmodded game process is still running after seven seconds. " +
+                            "If Spore opened normally, its installation can start without ModAPI. " +
+                            "The remaining issue is likely in the DLL injection or compatibility path.\n\n" +
+                            "Log: " + DiagnosticsPath,
+                            "Unmodded Spore test", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogLaunch("Unmodded launch failed: " + ex);
+                MessageBox.Show("Unmodded launch failed:\n" + ex.Message +
+                    "\n\nLog: " + DiagnosticsPath,
+                    "Unmodded Spore test", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private string SporebinPath;
         private string ExecutablePath;
         private GameVersionType ExecutableType;
@@ -57,7 +133,10 @@ namespace SporeModAPI_Launcher
 
             if (proceed)
             {
-                UpdateManager.CheckForUpdates();
+                bool testVanilla = args != null && args.Any(arg =>
+                    string.Equals(arg, "--test-vanilla", StringComparison.OrdinalIgnoreCase));
+                if (!testVanilla)
+                    UpdateManager.CheckForUpdates();
                 Application.EnableVisualStyles();
 
                 // ensure we find Spore & GA as early as possible
@@ -66,7 +145,10 @@ namespace SporeModAPI_Launcher
                     return;
                 }
 
-                new Program().Execute();
+                if (testVanilla)
+                    TestVanillaLaunch();
+                else
+                    new Program().Execute();
             }
             else
             {
@@ -90,6 +172,10 @@ namespace SporeModAPI_Launcher
                 // use the default path for now (we might have to use a different one for Origin)
                 this.ExecutablePath = Path.Combine(this.SporebinPath, "SporeApp.exe");
                 this.ExecutableType = GameVersion.DetectVersion(this.ExecutablePath);
+                LogLaunch("Launching with ModAPI. Executable: " + this.ExecutablePath +
+                    "; size: " + new FileInfo(this.ExecutablePath).Length +
+                    "; file version: " + FileVersionInfo.GetVersionInfo(this.ExecutablePath).FileVersion +
+                    "; selected loader version: " + this.ExecutableType);
 
                 // ensure we have detected a valid game version
                 if (this.ExecutableType == GameVersionType.None)
@@ -196,10 +282,13 @@ namespace SporeModAPI_Launcher
                     }
                 }
 
+                LogLaunch("Injecting with loader family: " +
+                    GameVersion.GetVersionName(this.ExecutableType));
                 InjectSporeProcess(GameVersion.GetVersionName(this.ExecutableType));
             }
             catch (Exception ex)
             {
+                LogLaunch("Launch error: " + ex);
                 ShowError(ex);
             }
         }
@@ -276,6 +365,7 @@ namespace SporeModAPI_Launcher
         void InjectSporeProcess(string dllEnding)
         {
             CreateSporeProcess();
+            LogLaunch("Created suspended process, PID " + ProcessInfo.dwProcessId);
 
             try
             {
@@ -285,7 +375,9 @@ namespace SporeModAPI_Launcher
                     throw new FileNotFoundException("Required injector DLL was not found: " + modApiDllInjectorPath);
                 }
 
+                LogLaunch("Injecting ModAPI.DLLInjector.dll");
                 IntPtr hDLLInjectorHandle = Injector.InjectDLL(this.ProcessInfo, modApiDllInjectorPath);
+                LogLaunch("DLL injector returned handle: " + hDLLInjectorHandle);
                 if (hDLLInjectorHandle == IntPtr.Zero)
                 {
                     throw new Win32Exception("Failed to inject DLL: " + modApiDllInjectorPath);
@@ -293,7 +385,9 @@ namespace SporeModAPI_Launcher
 
                 string[] dlls = GetDLLsToInject(dllEnding);
 
+                LogLaunch("Setting injection data; DLL count: " + dlls.Length);
                 Injector.SetInjectionData(this.ProcessInfo, hDLLInjectorHandle, dllEnding == "disk", dlls);
+                LogLaunch("Injection data accepted");
 
                 if (NativeMethods.IsDebuggerPresent())
                 {
@@ -310,12 +404,42 @@ namespace SporeModAPI_Launcher
                 }
 
                 ResumeSporeProcess();
+                LogLaunch("Resumed game process");
+
+                // On unverified builds, a successful DLL injection can still lead to
+                // an immediate game exit. Report this instead of silently closing.
+                if (!GameVersion.HasKnownExecutableSize(Path.Combine(this.SporebinPath, "SporeApp.exe")))
+                {
+                    uint waitResult = NativeMethods.WaitForSingleObject(this.ProcessInfo.hProcess, 6000);
+                    if (waitResult == 0)
+                    {
+                        uint exitCode;
+                        string result = NativeMethods.GetExitCodeProcess(this.ProcessInfo.hProcess, out exitCode)
+                            ? "0x" + exitCode.ToString("X8")
+                            : "unavailable";
+                        LogLaunch("Game exited within 6 seconds after injection. Exit code: " + result);
+                        MessageBox.Show(
+                            "Spore's process exited within six seconds after injection.\n" +
+                            "Exit code: " + result +
+                            "\n\nRun this same launcher with --test-vanilla to check whether " +
+                            "the unmodified game starts without any injected DLLs.\n\nLog: " +
+                            DiagnosticsPath,
+                            "Spore exited after launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        LogLaunch(waitResult == 0x102
+                            ? "Game still running 6 seconds after injection."
+                            : "Unable to monitor game process, WaitForSingleObject result: " + waitResult);
+                    }
+                }
             }
             catch (Exception e)
             {
+                LogLaunch("Injection failed: " + e);
                 // always terminate suspended Spore process on failure
                 NativeMethods.TerminateProcess(this.ProcessInfo.hProcess, 0);
-                throw e;
+                throw;
             }
         }
 
