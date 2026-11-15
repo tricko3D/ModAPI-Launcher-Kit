@@ -58,3 +58,13 @@ To switch to a different installation later, run `"Spore ModAPI Launcher.exe" --
 ### Recognizing older disc executables
 
 The Launcher normally identifies supported Galactic Adventures executables by their exact file size. For the older **3.0.0.2818** disc/patch 5.1 version, this fork additionally recognizes a valid x86 executable with that file version, even if its file size differs from the standard build. A confirmation dialog warns that a modified executable might not work with the disc ModAPI DLLs. This is a best-effort compatibility fallback, not a guarantee that every executable can load ModAPI. Versions with ambiguous DRM variants are still restricted to their known executable fingerprints.
+
+### Diagnosing a game that closes immediately
+
+If a manually selected installation accepts the version warning but nothing appears, test whether Spore starts without any ModAPI DLL injection. From a PowerShell window opened in the Launcher Kit installation folder, run:
+
+```powershell
+& ".\Spore ModAPI Launcher.exe" --test-vanilla
+```
+
+This launches the selected Galactic Adventures `SporeApp.exe` directly and reports whether the process exits within seven seconds. A failure without injection indicates a game/registry/executable problem, rather than ModAPI itself. With an unverified executable, normal launcher runs also monitor for six seconds after injection and report an early exit code. Diagnostic entries are appended to `%APPDATA%\Spore ModAPI Launcher\launch-diagnostics.log`. This mode does not modify game files or install mods.
