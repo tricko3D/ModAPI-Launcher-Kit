@@ -54,6 +54,7 @@ namespace Spore_ModAPI_Easy_Installer
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
+        [STAThread]
         static void Main()
         {
             if (!Permissions.IsAdministrator())
