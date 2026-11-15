@@ -35,8 +35,18 @@ namespace SporeModAPI_Launcher
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
-        static void Main()
+        [STAThread]
+        static void Main(string[] args)
         {
+            // Allow users to switch installations even when an existing game is detected.
+            if (args != null && args.Any(arg =>
+                string.Equals(arg, "--configure-game", StringComparison.OrdinalIgnoreCase)))
+            {
+                Application.EnableVisualStyles();
+                SporePath.ConfigureGamePaths();
+                return;
+            }
+
             bool proceed = true;
             if (Permissions.IsAdministrator())
             {
