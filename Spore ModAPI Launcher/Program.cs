@@ -177,32 +177,35 @@ namespace SporeModAPI_Launcher
                     "; file version: " + FileVersionInfo.GetVersionInfo(this.ExecutablePath).FileVersion +
                     "; selected loader version: " + this.ExecutableType);
 
-                // ensure we have detected a valid game version
+                // A legacy GOG Collection executable can report the disc version
+                // number while differing from the build supported by the SDK.
+                // Its fixed function addresses are not known to be compatible.
                 if (this.ExecutableType == GameVersionType.None)
                 {
-                    SupportInfo.ShowError(Strings.UnsupportedSporeVersion, Strings.UnsupportedSporeVersionTitle);
-                    return;
-                }
-
-                // Executable sizes are used as build fingerprints. Some older installs
-                // retain the supported disc file version but differ in size. Those builds
-                // may be modified, so require explicit consent before trying the disc DLLs.
-                if (!GameVersion.HasKnownExecutableSize(this.ExecutablePath))
-                {
-                    string fileVersion = FileVersionInfo.GetVersionInfo(this.ExecutablePath).FileVersion;
-                    long fileSize = new FileInfo(this.ExecutablePath).Length;
-                    if (MessageBox.Show(
-                        "SporeApp.exe reports version " + fileVersion +
-                        ", but its executable size (" + fileSize + " bytes) does not match a known Launcher Kit build.\n\n" +
-                        "The launcher recognized this as the older disc/patch 5.1 version and can try " +
-                        "the corresponding ModAPI DLLs. However, a modified executable might still " +
-                        "be incompatible or crash during injection.\n\n" +
-                        "Try launching this version anyway?",
-                        "Unverified Spore executable", MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning) != DialogResult.Yes)
+                    long size = new FileInfo(this.ExecutablePath).Length;
+                    string version = FileVersionInfo.GetVersionInfo(this.ExecutablePath).FileVersion;
+                    if (size == 24888320 && version == "3.0.0.2818")
                     {
-                        return;
+                        LogLaunch("Old GOG-sized 3.0.0.2818 executable not supported for injection");
+                        MessageBox.Show(
+                            "This SporeApp.exe resembles the older GOG SPORE Collection build " +
+                            "(3.0.0.2818, 24,888,320 bytes).\n\n" +
+                            "It is not interchangeable with the patch 5.1 disc executable " +
+                            "used by the ModAPI SDK. A previous attempt to inject the disc " +
+                            "DLLs into this build crashed with access violation 0xC0000005.\\n\\n" +
+                            "The game can launch without ModAPI. For DLL-based mods, use a " +
+                            "supported up-to-date GOG/EA/Steam installation, or port " +
+                            "the native ModAPI SDK to this specific executable.\\n\\n" +
+                            "Manual installation paths remain supported.",
+                            "Unsupported legacy Spore executable",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
+                    else
+                    {
+                        SupportInfo.ShowError(Strings.UnsupportedSporeVersion,
+                            Strings.UnsupportedSporeVersionTitle);
+                    }
+                    return;
                 }
 
                 // check if SporeModLoader is installed
