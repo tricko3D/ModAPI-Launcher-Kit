@@ -54,3 +54,7 @@ Select the **Galactic Adventures game folder** containing `DataEP1` and `Sporebi
 To switch to a different installation later, run `"Spore ModAPI Launcher.exe" --configure-game` from a command prompt or a shortcut. Selecting a game never writes to the game's registry keys.
 
 **Compatibility:** Manual folder selection removes registry-based *discovery* as a requirement, but the game itself may still need valid registry `DataDir` entries in order to run. The launcher also still requires Galactic Adventures and a compatible `SporeApp.exe` version for safe ModAPI DLL injection. It does not bypass DRM or add support for unknown executable versions.
+
+### Recognizing older disc executables
+
+The Launcher normally identifies supported Galactic Adventures executables by their exact file size. For the older **3.0.0.2818** disc/patch 5.1 version, this fork additionally recognizes a valid x86 executable with that file version, even if its file size differs from the standard build. A confirmation dialog warns that a modified executable might not work with the disc ModAPI DLLs. This is a best-effort compatibility fallback, not a guarantee that every executable can load ModAPI. Versions with ambiguous DRM variants are still restricted to their known executable fingerprints.
