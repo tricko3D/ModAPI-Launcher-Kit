@@ -153,7 +153,10 @@ namespace SporeModAPI_Launcher
                     }
                 }
 
-                if (SporePath.SporeIsInstalledOnSteam())
+                // A Steam install elsewhere on the computer must not cause Steam-specific
+                // launch files to be written into a manually selected Origin/EA install.
+                if (SporePath.SporeIsInstalledOnSteam() &&
+                    !(SporePath.HasManualConfiguration && GameVersion.RequiresModAPIFix(this.ExecutableType)))
                 {
                     string steamAppIdPath = Path.Combine(this.SporebinPath, "steam_appid.txt");
                     //we have to use Spore GAs appid now, due to steam DRM :(
